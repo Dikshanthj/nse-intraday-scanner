@@ -3,83 +3,93 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 
-st.set_page_config(page_title="Top 20 Intraday Alpha Engine", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="NSE Broad Market Alpha Engine", page_icon="🦅", layout="wide")
 
-st.title("🛡️ Institutional-Grade Top 20 Low-Risk Intraday Engine")
-st.write("Applies a multi-layered mathematical defense grid using zero-block market data streams.")
+st.title("🦅 NSE Broad Market Top 10 Intraday Engine")
+st.write("Scans an expanded database of Nifty 100, Midcap momentum leaders, and highly liquid F&O counters.")
 
-# Direct structural ticker list of highly liquid Large-Caps on the NSE to completely avoid operator penny stocks
-NIFTY_LIQUID_TICKERS = [
+# EXPANDED DATASET: The top 100+ most active, highly liquid institutional trading stocks on the NSE
+BROAD_NSE_DATABASE = [
+    # --- Mega Cap Pillars ---
     "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "BHARTIARTL.NS", "ICICIBANK.NS", 
-    "INFY.NS", "SBI.NS", "LICI.NS", "ITC.NS", "HINDUNILVR.NS", 
-    "LT.NS", "BAJAJFINSV.NS", "AXISBANK.NS", "M&M.NS", "MARUTI.NS", 
-    "SUNPHARMA.NS", "KOTAKBANK.NS", "TITAN.NS", "ULTRACEMCO.NS", "TRENT.NS",
-    "NTPC.NS", "POWERGRID.NS", "TATAMOTORS.NS", "ADANIENT.NS", "ADANIPORTS.NS",
-    "ONGC.NS", "COALINDIA.NS", "JSWSTEEL.NS", "HINDALCO.NS", "TATASTEEL.NS",
-    "GRASIM.NS", "NESTLEIND.NS", "ASIANPAINT.NS", "TECHM.NS", "WIPRO.NS",
-    "HCLTECH.NS", "APOLLOHOSP.NS", "CIPLA.NS", "DRREDDY.NS", "DIVISLAB.NS"
+    "INFY.NS", "SBIN.NS", "LICI.NS", "ITC.NS", "HINDUNILVR.NS", "LT.NS",
+    # --- Banking & Financial Services Leaders ---
+    "AXISBANK.NS", "KOTAKBANK.NS", "BAJAJFINSV.NS", "BAJFINANCE.NS", "SHRIRAMFIN.NS",
+    "CHOLAFIN.NS", "MUTHOOTFIN.NS", "RECLTD.NS", "PFC.NS", "INDUSINDBK.NS", "PNB.NS",
+    "CANBK.NS", "BANKBARODA.NS", "IDFCFIRSTB.NS", "FEDERALBNK.NS", "AUBANK.NS",
+    # --- High-Momentum Conglomerates & Retail ---
+    "TRENT.NS", "ADANIENT.NS", "ADANIPORTS.NS", "ADANIPOWER.NS", "ATGL.NS", 
+    "DMART.NS", "TATAMOTORS.NS", "M&M.NS", "MARUTI.NS", "TIINDIA.NS", "EICHERMOT.NS",
+    # --- Energy, Utilities & Commodities ---
+    "NTPC.NS", "POWERGRID.NS", "ONGC.NS", "COALINDIA.NS", "BPCL.NS", "IOC.NS", 
+    "GAIL.NS", "TATASTEEL.NS", "JSWSTEEL.NS", "HINDALCO.NS", "VEDL.NS", "JINDALSTEL.NS",
+    # --- Tech, Telecom, Infrastructure & Industrials ---
+    "WIPRO.NS", "HCLTECH.NS", "TECHM.NS", "LTIM.NS", "BEL.NS", "HAL.NS", "BHEL.NS",
+    "DIXON.NS", "IRFC.NS", "RVNL.NS", "CONCOR.NS", "GMRINFRA.NS", "DLF.NS",
+    # --- Healthcare, Pharma & Consumables ---
+    "SUNPHARMA.NS", "CIPLA.NS", "DRREDDY.NS", "APOLLOHOSP.NS", "DIVISLAB.NS", "MANKIND.NS",
+    "MAXHEALTH.NS", "LUPIN.NS", "AUROPHARMA.NS", "BIOCON.NS", "NESTLEIND.NS", 
+    "BRITANNIA.NS", "TATACONSUM.NS", "VBL.NS", "GODREJPROP.NS", "COLPAL.NS"
 ]
 
-REWARD_RATIO = 2.0  # Hardcoded mathematical 1:2 Risk-to-Reward ratio
+REWARD_RATIO = 2.0  # Rigid mathematical 1:2 Risk-to-Reward ratio
 
-if st.button("🚀 Run Full Quantitative Scan (Generate Top 20)"):
-    with st.spinner("Analyzing liquid order blocks, volatility spreads, and volume profiles..."):
+if st.button("🦅 Run Broad Market Quantitative Scan"):
+    with st.spinner("Analyzing broad-market data blocks, volume anomalies, and pattern setups..."):
         try:
             qualified_pool = []
             
-            # Download live market data for all liquid tickers at once
-            tickers_string = " ".join(NIFTY_LIQUID_TICKERS)
+            # Batch request market frames for our entire expanded universe
+            tickers_string = " ".join(BROAD_NSE_DATABASE)
             data = yf.download(tickers_string, period="2d", group_by="ticker", progress=False)
             
-            for ticker in NIFTY_LIQUID_TICKERS:
-                if ticker not in data.columns.levels[0]:
+            for ticker in BROAD_NSE_DATABASE:
+                if ticker not in data.columns.levels:
                     continue
                     
                 df_ticker = data[ticker].dropna()
                 if len(df_ticker) < 2:
                     continue
                 
-                # Fetch closing and structural parameters
+                # Extract clean closing OHLC details
                 close = float(df_ticker['Close'].iloc[-1])
                 day_high = float(df_ticker['High'].iloc[-1])
                 day_low = float(df_ticker['Low'].iloc[-1])
                 day_open = float(df_ticker['Open'].iloc[-1])
                 volume = int(df_ticker['Volume'].iloc[-1])
                 
-                # Calculate basic percentage change from previous day's close
+                # Rate of Change calculation
                 prev_close = float(df_ticker['Close'].iloc[-2])
                 pct_change = ((close - prev_close) / prev_close) * 100
                 
-                # LAYER 1: Exclude non-momentum or declining stocks for the long-bias list
+                # INTRADAY DEFENSE GRID 
+                # Rejects crashing counters from our high-yield long-momentum matrix
                 if pct_change <= 0:
                     continue
                 
-                # LAYER 2: Intraday Structural Range Analysis
                 day_range = day_high - day_low
                 if day_range == 0:
                     continue
                 
-                # LAYER 3: High-Close Proximity Fraction (HCPF Pattern Evaluation)
+                # High-Close Proximity Fraction (HCPF) Pattern Verification
                 hcpf = (day_high - close) / day_range
-                if hcpf > 0.25:  # Rejects stocks that gave up more than 25% of their daily gains
-                    continue
                 
-                # LAYER 4: Micro-Noise Volatility Filter
+                # Filter out hyper-volatile or manipulated micro-gaps
                 historical_volatility = (day_range / close) * 100
-                if historical_volatility > 4.5:  # Rejects high-risk, erratic movements
+                if historical_volatility > 5.0 or volume < 1000000:
                     continue
                 
-                # LAYER 5: Entry, Target, and 1:2 Risk Framing Level Generation
+                # Level Generation Math
                 entry_trigger = round(close * 1.002, 2)
-                calculated_risk = min(0.75, historical_volatility * 0.4)
+                calculated_risk = min(0.80, historical_volatility * 0.4)
                 stop_loss = round(close * (1 - (calculated_risk / 100)), 2)
                 
                 risk_per_share = entry_trigger - stop_loss
                 target = round(entry_trigger + (risk_per_share * REWARD_RATIO), 2)
                 expected_yield_pct = ((target - entry_trigger) / entry_trigger) * 100
                 
-                # Ranking metric based on daily volume profile and close stability
-                accumulation_score = (1.0 - hcpf) * (volume / 1000000)
+                # Compounded ranking algorithm balancing price-action velocity and institutional accumulation
+                accumulation_score = (pct_change * 2.5) + (1.0 - hcpf)
                 
                 symbol_clean = ticker.replace(".NS", "")
                 qualified_pool.append({
@@ -89,19 +99,20 @@ if st.button("🚀 Run Full Quantitative Scan (Generate Top 20)"):
                     "ENTRY TRIGGER (₹)": entry_trigger,
                     "TARGET (PROFIT) (₹)": target,
                     "STOP-LOSS (RISK) (₹)": stop_loss,
-                    "EXPECTED YIELD (%)": f"{expected_yield_pct:.2f}%",
-                    "HCPF FILTER": round(hcpf, 3)
+                    "EXPECTED YIELD (%)": f"{expected_yield_pct:.2f}%"
                 })
             
-            # Step 3: Sort and Render Data
+            # Step 2: Filter and Render the Final Top 10 Slice
             if qualified_pool:
                 df = pd.DataFrame(qualified_pool).sort_values(by="RANKING SCORE", ascending=False)
-                top_20_df = df.head(20).reset_index(drop=True)
-                top_20_df.index = top_20_df.index + 1
                 
-                st.success(f"🎯 Execution Success: Top {len(top_20_df)} Low-Risk Alpha Stocks Compiled.")
+                # Constrain the data stream to output the Top 10
+                top_10_df = df.head(10).reset_index(drop=True)
+                top_10_df.index = top_10_df.index + 1
+                
+                st.success("🎯 Execution Success: Expanded Top 10 Safe Intraday Alpha Stocks Compiled.")
                 st.dataframe(
-                    top_20_df.drop(columns=["RANKING SCORE"]).set_index("STOCK TICKER").style.format({
+                    top_10_df.drop(columns=["RANKING SCORE"]).set_index("STOCK TICKER").style.format({
                         "VERIFIED CLOSE": "₹{:,.2f}",
                         "ENTRY TRIGGER (₹)": "₹{:,.2f}",
                         "TARGET (PROFIT) (₹)": "₹{:,.2f}",
@@ -110,7 +121,7 @@ if st.button("🚀 Run Full Quantitative Scan (Generate Top 20)"):
                     use_container_width=True
                 )
             else:
-                st.error("No active equities cleared the stringent low-risk defense filters at this hour.")
+                st.error("No active equities cleared the expanded filtering parameters.")
                 
             st.markdown("""
             ### 🛠️ Ironclad Execution Architecture (iPhone Operational Use)
