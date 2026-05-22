@@ -1,45 +1,58 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from nsepython import nse_get_top_gainers, nse_quote_meta
+import yfinance as yf
 
 st.set_page_config(page_title="Top 20 Intraday Alpha Engine", page_icon="🛡️", layout="wide")
 
 st.title("🛡️ Institutional-Grade Top 20 Low-Risk Intraday Engine")
-st.write("Applies a multi-layered mathematical defense grid to eliminate high-risk assets and output the top 20 momentum setups.")
+st.write("Applies a multi-layered mathematical defense grid using zero-block market data streams.")
 
-# Hidden institutional defensive configurations
-MIN_VOLUME = 1500000        # Rejects low liquidity; forces deep institutional trading desks
-MIN_PRICE = 150.0           # Discards highly erratic penny stocks
-MAX_PRICE = 15000.0         # Excludes hyper-expensive counters to preserve lot fractional health
-RISK_CEILING_PCT = 0.75     # Absolute maximum loss allowed per trade entry
-REWARD_RATIO = 2.0          # Hardcoded mathematical 1:2 Risk-to-Reward ratio
+# Direct structural ticker list of highly liquid Large-Caps on the NSE to completely avoid operator penny stocks
+NIFTY_LIQUID_TICKERS = [
+    "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "BHARTIARTL.NS", "ICICIBANK.NS", 
+    "INFY.NS", "SBI.NS", "LICI.NS", "ITC.NS", "HINDUNILVR.NS", 
+    "LT.NS", "BAJAJFINSV.NS", "AXISBANK.NS", "M&M.NS", "MARUTI.NS", 
+    "SUNPHARMA.NS", "KOTAKBANK.NS", "TITAN.NS", "ULTRACEMCO.NS", "TRENT.NS",
+    "NTPC.NS", "POWERGRID.NS", "TATAMOTORS.NS", "ADANIENT.NS", "ADANIPORTS.NS",
+    "ONGC.NS", "COALINDIA.NS", "JSWSTEEL.NS", "HINDALCO.NS", "TATASTEEL.NS",
+    "GRASIM.NS", "NESTLEIND.NS", "ASIANPAINT.NS", "TECHM.NS", "WIPRO.NS",
+    "HCLTECH.NS", "APOLLOHOSP.NS", "CIPLA.NS", "DRREDDY.NS", "DIVISLAB.NS"
+]
+
+REWARD_RATIO = 2.0  # Hardcoded mathematical 1:2 Risk-to-Reward ratio
 
 if st.button("🚀 Run Full Quantitative Scan (Generate Top 20)"):
-    with st.spinner("Executing structural data cleaning, trend cross-matching, and ranking..."):
+    with st.spinner("Analyzing liquid order blocks, volatility spreads, and volume profiles..."):
         try:
-            # Step 1: Ingest Live High-Momentum Pool from NSE
-            raw_pool = nse_get_top_gainers()
             qualified_pool = []
             
-            for index, row in raw_pool.iterrows():
-                symbol = row['symbol']
-                close = float(row['ltp'])
-                pct_change = float(row['netPrice'])
-                volume = int(row['tradedQuantity'])
-                
-                # LAYER 1: Severe Liquidity and Base Pricing Defense Grid
-                if volume < MIN_VOLUME or close < MIN_PRICE or close > MAX_PRICE:
+            # Download live market data for all liquid tickers at once
+            tickers_string = " ".join(NIFTY_LIQUID_TICKERS)
+            data = yf.download(tickers_string, period="2d", group_by="ticker", progress=False)
+            
+            for ticker in NIFTY_LIQUID_TICKERS:
+                if ticker not in data.columns.levels[0]:
+                    continue
+                    
+                df_ticker = data[ticker].dropna()
+                if len(df_ticker) < 2:
                     continue
                 
-                # Fetch structural deep metadata for multi-point candle analysis
-                meta = nse_quote_meta(symbol)
-                if not meta or 'high' not in meta or 'low' not in meta or 'open' not in meta:
-                    day_high, day_low, day_open = close * 1.005, close * 0.995, close * 0.998
-                else:
-                    day_high = float(meta['high'])
-                    day_low = float(meta['low'])
-                    day_open = float(meta['open'])
+                # Fetch closing and structural parameters
+                close = float(df_ticker['Close'].iloc[-1])
+                day_high = float(df_ticker['High'].iloc[-1])
+                day_low = float(df_ticker['Low'].iloc[-1])
+                day_open = float(df_ticker['Open'].iloc[-1])
+                volume = int(df_ticker['Volume'].iloc[-1])
+                
+                # Calculate basic percentage change from previous day's close
+                prev_close = float(df_ticker['Close'].iloc[-2])
+                pct_change = ((close - prev_close) / prev_close) * 100
+                
+                # LAYER 1: Exclude non-momentum or declining stocks for the long-bias list
+                if pct_change <= 0:
+                    continue
                 
                 # LAYER 2: Intraday Structural Range Analysis
                 day_range = day_high - day_low
@@ -47,38 +60,31 @@ if st.button("🚀 Run Full Quantitative Scan (Generate Top 20)"):
                     continue
                 
                 # LAYER 3: High-Close Proximity Fraction (HCPF Pattern Evaluation)
-                # Determines institutional accumulation into the market close
                 hcpf = (day_high - close) / day_range
-                if hcpf > 0.20:  # Tightened defense: Rejects stocks giving away >20% of intraday gains
+                if hcpf > 0.25:  # Rejects stocks that gave up more than 25% of their daily gains
                     continue
                 
-                # LAYER 4: Micro-Noise Volatility Filter (ATR Scaling Approximation)
+                # LAYER 4: Micro-Noise Volatility Filter
                 historical_volatility = (day_range / close) * 100
-                if historical_volatility > 4.5:  # Rejects hyper-volatile, risky operator targets
-                    continue
-                    
-                # LAYER 5: Trend Confirmation via Algorithmic Moving Average Proximity
-                # Approximates 9 EMA / 20 EMA bullish alignment structure
-                estimated_ema_trend_score = (close - day_low) / (day_high - day_open)
-                if estimated_ema_trend_score < 0.60:
+                if historical_volatility > 4.5:  # Rejects high-risk, erratic movements
                     continue
                 
-                # LAYER 6: Quantitative Level Compilation & 1:2 Framing
+                # LAYER 5: Entry, Target, and 1:2 Risk Framing Level Generation
                 entry_trigger = round(close * 1.002, 2)
-                calculated_risk = min(RISK_CEILING_PCT, historical_volatility * 0.4)
+                calculated_risk = min(0.75, historical_volatility * 0.4)
                 stop_loss = round(close * (1 - (calculated_risk / 100)), 2)
                 
-                # Apply structural risk-reward multiplication
                 risk_per_share = entry_trigger - stop_loss
                 target = round(entry_trigger + (risk_per_share * REWARD_RATIO), 2)
                 expected_yield_pct = ((target - entry_trigger) / entry_trigger) * 100
                 
-                # Synthesize an overall Institutional Strength Score for ranking
-                accumulation_score = round((1.0 - hcpf) * (volume / 1000000), 2)
+                # Ranking metric based on daily volume profile and close stability
+                accumulation_score = (1.0 - hcpf) * (volume / 1000000)
                 
+                symbol_clean = ticker.replace(".NS", "")
                 qualified_pool.append({
                     "RANKING SCORE": accumulation_score,
-                    "STOCK TICKER": symbol,
+                    "STOCK TICKER": symbol_clean,
                     "VERIFIED CLOSE": close,
                     "ENTRY TRIGGER (₹)": entry_trigger,
                     "TARGET (PROFIT) (₹)": target,
@@ -87,18 +93,13 @@ if st.button("🚀 Run Full Quantitative Scan (Generate Top 20)"):
                     "HCPF FILTER": round(hcpf, 3)
                 })
             
-            # Step 2: System Sorting and Ranking Pipeline
+            # Step 3: Sort and Render Data
             if qualified_pool:
-                # Rank strictly by Highest Institutional Strength Score
                 df = pd.DataFrame(qualified_pool).sort_values(by="RANKING SCORE", ascending=False)
-                
-                # Enforce exact top 20 extraction slice
                 top_20_df = df.head(20).reset_index(drop=True)
-                top_20_df.index = top_20_df.index + 1  # Standardize numbering from 1 to 20
+                top_20_df.index = top_20_df.index + 1
                 
-                st.success(f"🎯 Execution Success: Top {len(top_20_df)} Low-Risk Alpha Stocks Compiled Below.")
-                
-                # Output complete crisp execution table
+                st.success(f"🎯 Execution Success: Top {len(top_20_df)} Low-Risk Alpha Stocks Compiled.")
                 st.dataframe(
                     top_20_df.drop(columns=["RANKING SCORE"]).set_index("STOCK TICKER").style.format({
                         "VERIFIED CLOSE": "₹{:,.2f}",
@@ -119,4 +120,4 @@ if st.button("🚀 Run Full Quantitative Scan (Generate Top 20)"):
             """)
             
         except Exception as e:
-            st.error(f"Data Link Interruption: {e}. The cloud hosting network interface is likely experiencing temporary traffic rate limits from the primary exchange server.")
+            st.error(f"Data Link Interruption: {str(e)}")
