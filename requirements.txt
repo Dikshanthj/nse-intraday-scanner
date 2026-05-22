@@ -1,4 +1,6 @@
-
 streamlit
-yfinance
+nsepython
 pandas
+numpy
+beautifulsoup4
+requests
